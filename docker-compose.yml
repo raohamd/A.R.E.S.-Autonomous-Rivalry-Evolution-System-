@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  # ----------------------------------------
+  # TARGET: The Vulnerable Application
+  # ----------------------------------------
+  juice-shop:
+    image: bkimminich/juice-shop
+    container_name: ares_target
+    restart: always
+    ports:
+      - "3000:3000" # Accessible at localhost:3000
+    networks:
+      - cyber_range
+
+  # ----------------------------------------
+  # BLUE TEAM: The Defender (Needs Kernel Access)
+  # ----------------------------------------
+  blue-agent:
+    build: ./blue_agent
+    container_name: ares_blue
+    privileged: true  # CRITICAL: Allows kernel hooks
+    pid: "host"       # CRITICAL: Allows seeing host processes
+    volumes:
+      # Mount Host Kernel Headers so eBPF works
+      - /lib/modules:/lib/modules:ro
+      - /usr/src:/usr/src:ro
+      - /sys/kernel/debug:/sys/kernel/debug
+      # Shared folder for your scripts
+      - ./blue_agent:/app
+    networks:
+      - cyber_range
+
+  # ----------------------------------------
+  # RED TEAM: The Attacker
+  # ----------------------------------------
+  red-agent:
+    build: ./red_agent
+    container_name: ares_red
+    volumes:
+      - ./red_agent:/app
+    networks:
+      - cyber_range
+
+networks:
+  cyber_range:
+    driver: bridge
